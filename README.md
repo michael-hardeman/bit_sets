@@ -13,5 +13,4 @@ you must allocate huge boolean arrays (for example the Sieve of Eratosthenes) an
 normally means you use 8x the amount of memory.
 
 This library will represent the boolean array as an array of unsigned words (matching your
-system word size). Each bit is one of the booleans. This reduces memory usage by 8 * (32 or 64)
-depending on the word size.
+system word size). Each bit is one of the booleans. This reduces memory usage by 8x.
