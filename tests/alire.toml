@@ -1,13 +1,13 @@
 name = "bit_sets_tests"
 description = "Unit tests for various parts of the bit_sets library"
-version = "0.1.0-dev"
+version = "1.0.0"
 
 authors = ["Michael Hardeman"]
 maintainers = ["Michael Hardeman <mhardeman25@gmail.com>"]
 maintainers-logins = ["michael-hardeman"]
 licenses = "GPL-2.0-or-later"
 website = "https://github.com/michael-hardeman/bit_sets"
-tags = ["bit", "set", "boolean", "array", "preformance", "packed"]
+tags = []
 
 executables = ["bit_sets-test_harness"]
 
@@ -15,7 +15,7 @@ executables = ["bit_sets-test_harness"]
 aunit = "^24.0.0"
 
 [[depends-on]]
-bit_sets = "~0.1.0-dev"
+bit_sets = "~1.0.0"
 
 [[pins]]
 bit_sets = { path='../bit_sets' }
