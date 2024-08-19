@@ -1,18 +1,18 @@
 name = "bit_sets_example"
 description = "An example of using bit_sets for use in development and testing"
-version = "0.1.0-dev"
+version = "1.0.0"
 
 authors = ["Michael Hardeman"]
 maintainers = ["Michael Hardeman <mhardeman25@gmail.com>"]
 maintainers-logins = ["michael-hardeman"]
 licenses = "GPL-2.0-or-later"
 website = "https://github.com/michael-hardeman/bit_sets"
-tags = ["bit", "sets", "boolean", "array", "preformance"]
+tags = []
 
 executables = ["main"]
 
 [[depends-on]]
-bit_sets = "~0.1.0-dev"
+bit_sets = "~1.0.0"
 
 [[pins]]
 bit_sets = { path='../bit_sets' }

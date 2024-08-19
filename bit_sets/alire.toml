@@ -1,6 +1,6 @@
 name = "bit_sets"
 description = "A packed boolean array that saves space and is preformant"
-version = "0.1.0-dev"
+version = "1.0.0"
 
 authors = ["Michael Hardeman"]
 maintainers = ["Michael Hardeman <mhardeman25@gmail.com>"]
