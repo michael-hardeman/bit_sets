@@ -1,9 +1,9 @@
 Bit_Sets
 ========
 
-This library implements packed boolean arrays in a way that allows preformant useage.
+This library implements packed boolean arrays in a way that allows performant usage.
 
-if you declare an array of boolean the normal way:
+If you declare an array of boolean the normal way:
 
     type Boolean_Array is array (Positive range <>) of Boolean;
 
@@ -14,3 +14,17 @@ normally means you use 8x the amount of memory.
 
 This library will represent the boolean array as an array of unsigned words (matching your
 system word size). Each bit is one of the booleans. This reduces memory usage by 8x.
+
+Building
+--------
+
+This project is built with [Alire](https://alire.ada.dev). With alire installed:
+
+    alr build
+
+Without alire, copy [share/bit_sets/bit_sets_config.gpr](./share/bit_sets/bit_sets_config.gpr)
+to `config/bit_sets_config.gpr` and build with:
+
+    gprbuild bit_sets.gpr
+
+The [example](./example) and [tests](./tests) crates pin the library from the repository root.

@@ -15,4 +15,4 @@ executables = ["main"]
 bit_sets = "~1.0.0"
 
 [[pins]]
-bit_sets = { path='../bit_sets' }
+bit_sets = { path='..' }
