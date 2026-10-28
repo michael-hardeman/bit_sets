@@ -15,17 +15,19 @@
 --  Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
 --  Boston, MA  02110-1301, USA.
 
-package Bit_Set_Examples is
+-------------
+-- Bit_Sets --
+-------------
+--  Packed sets of bits. Each element costs one bit of memory instead of the
+--  byte (or more) a plain array of Boolean uses.
+--
+--  Instantiate Bit_Sets.Generic_Sets with the index type you need:
+--
+--     package Flags is new Bit_Sets.Generic_Sets (Natural);
+--     Sieve : Flags.Bit_Set := Flags.Create (0, 1_000_000_000, Value => True);
+package Bit_Sets with Pure is
 
-   type Example_State is tagged record
-      Size_In_Bits : Long_Long_Integer := 0;
-      Time_To_Set_Bit_Pattern : Duration;
-      Time_To_Count_Pop_Pattern : Duration;
-      Pop_Count : Long_Long_Integer := 0;
-      Time_To_Test_Bit_Pattern : Duration;
-      Is_Alternating : Boolean := True;
-   end record;
+   --  Number of bits in a set
+   type Count_Type is range 0 .. 2 ** 62;
 
-   procedure Put (Example : Example_State'Class; Header : String);
-
-end Bit_Set_Examples;
+end Bit_Sets;

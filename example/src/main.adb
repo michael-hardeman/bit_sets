@@ -15,23 +15,18 @@
 --  Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
 --  Boston, MA  02110-1301, USA.
 
-with Bit_Set_Examples; use Bit_Set_Examples;
+with Shared;                use Shared;
 with Boolean_Array_Example; use Boolean_Array_Example;
-with Bit_Set_Bit_Iteration_Example; use Bit_Set_Bit_Iteration_Example;
-with Bit_Set_Block_Iteration_Example; use Bit_Set_Block_Iteration_Example;
+with Bit_Set_Example;       use Bit_Set_Example;
 
 procedure Main is
-   EXAMPLE_SIZE : constant Long_Long_Integer := 100_000_000;
+   LIMIT : constant Natural := 100_000_000;
    Bool_Array_Example : Boolean_Array_Example_State;
-   Bit_Iteration_Example : Bit_Set_Bit_Iteration_Example_State;
-   Block_Iteration_Example : Bit_Set_Block_Iteration_Example_State;
+   Bits_Example       : Bit_Set_Example_State;
 begin
-   Run (Bool_Array_Example, EXAMPLE_SIZE);
+   Run (Bool_Array_Example, LIMIT);
    Put (Bool_Array_Example, Boolean_Array_Example.HEADER);
 
-   Run (Bit_Iteration_Example, EXAMPLE_SIZE);
-   Put (Bit_Iteration_Example, Bit_Set_Bit_Iteration_Example.HEADER);
-
-   Run (Block_Iteration_Example, EXAMPLE_SIZE);
-   Put (Block_Iteration_Example, Bit_Set_Block_Iteration_Example.HEADER);
+   Run (Bits_Example, LIMIT);
+   Put (Bits_Example, Bit_Set_Example.HEADER);
 end Main;

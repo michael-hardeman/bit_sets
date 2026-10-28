@@ -15,9 +15,21 @@
 --  Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
 --  Boston, MA  02110-1301, USA.
 
+with Ada.Assertions;
+
 with AUnit.Assertions; use AUnit.Assertions;
 
+with Bit_Sets.Generic_Sets;
+
 package body Bit_Sets.Bit_Set_Tests is
+
+   package Sets is new Bit_Sets.Generic_Sets (Integer);
+   use Sets;
+
+   --  Bounds that are not block aligned: 136 bits, 3 blocks, 8 bits in the last
+   FIRST  : constant := -5;
+   LAST   : constant := 130;
+   LENGTH : constant := LAST - FIRST + 1;
 
    --------------------
    -- Register_Tests --
@@ -25,301 +37,402 @@ package body Bit_Sets.Bit_Set_Tests is
    overriding procedure Register_Tests (Test : in out Test_Case) is
       use AUnit.Test_Cases.Registration;
    begin
-      Register_Routine (Test, Test_Initialize'Access,       "Initialize");
-      Register_Routine (Test, Test_Size_In_Bits'Access,     "Size_In_Bits");
-      Register_Routine (Test, Test_Test_All_Equal'Access,   "Test_All_Equal");
-      Register_Routine (Test, Test_Test_All_Set'Access,     "Test_All_Set");
-      Register_Routine (Test, Test_Test_All_Unset'Access,   "Test_All_Unset");
-      Register_Routine (Test, Test_Count_Population'Access, "Count_Population");
-      Register_Routine (Test, Test_Iterate_Blocks'Access,   "Iterate_Blocks");
-      Register_Routine (Test, Test_Iterate_Bits'Access,     "Iterate_Bits");
-      Register_Routine (Test, Test_Reduce_Blocks'Access,    "Reduce_Blocks");
-      Register_Routine (Test, Test_Reduce_Bits'Access,      "Reduce_Bits");
+      Register_Routine (Test, Test_Create'Access,          "Create");
+      Register_Routine (Test, Test_Empty_Set'Access,       "Empty_Set");
+      Register_Routine (Test, Test_Single_Indexes'Access,  "Single_Indexes");
+      Register_Routine (Test, Test_Ranges'Access,          "Ranges");
+      Register_Routine (Test, Test_Whole_Sets'Access,      "Whole_Sets");
+      Register_Routine (Test, Test_Set_Operations'Access,  "Set_Operations");
+      Register_Routine (Test, Test_Comparisons'Access,     "Comparisons");
+      Register_Routine (Test, Test_Copy_And_Assign'Access, "Copy_And_Assign");
+      Register_Routine (Test, Test_Iteration'Access,       "Iteration");
+      Register_Routine (Test, Test_Shifts'Access,          "Shifts");
+      Register_Routine (Test, Test_Union_Shifted'Access,   "Union_Shifted");
+      Register_Routine (Test, Test_Image'Access,           "Image");
+      Register_Routine (Test, Test_Preconditions'Access,   "Preconditions");
    end Register_Tests;
 
-   ------------------
-   -- Test_Initialize --
-   ------------------
-   procedure Test_Initialize (Test : in out Test_Cases.Test_Case'Class) is
+   -----------------
+   -- Test_Create --
+   -----------------
+   procedure Test_Create (Test : in out Test_Cases.Test_Case'Class) is
       pragma Unreferenced (Test);
-      Bits : Bit_Set;
+      Empty : constant Bit_Set := Create (FIRST, LAST);
+      Full  : constant Bit_Set := Create (FIRST, LAST, Value => True);
    begin
-      Initialize (Bits, (Block_Type'Size * 2) + 2, 1337);
-      Assert (null /= Bits.Blocks,            "Blocks are null");
-      Assert (2     = Bits.Blocks.all'Length, "2 blocks we not allocated");
-      Assert (1337  = Bits.First_Index,       "First_Index was not respected and cached");
-      Assert (0     = Bits.Remaining_Block,   "Remaining_Blocks should always be 0 initially");
-      Assert (2     = Bits.Remaining_Bits,    "Remaining_Bits should be 1 given the initial size");
-      Assert (2#11# = Bits.Remaining_Mask,    "Remaining_Mask should have the first two bits set");
-   end Test_Initialize;
+      Assert (FIRST  = Empty.First_Index,  "First_Index was not respected");
+      Assert (LAST   = Empty.Last_Index,   "Last_Index was not respected");
+      Assert (LENGTH = Empty.Length,       "Length is wrong");
+      Assert (3 * 64 = Empty.Storage_Size, "Storage should be 3 whole blocks");
+      Assert (Empty.Is_Empty,              "Default set should be empty");
+      Assert (0      = Empty.Count,        "Default set should have no members");
+      Assert (Full.Is_Full,                "Set created with True should be full");
+      Assert (LENGTH = Full.Count,         "Full set should count every index, but none of the unused bits");
+   end Test_Create;
 
-   -----------------------
-   -- Test_Size_In_Bits --
-   -----------------------
-   procedure Test_Size_In_Bits (Test : in out Test_Cases.Test_Case'Class) is
+   --------------------
+   -- Test_Empty_Set --
+   --------------------
+   procedure Test_Empty_Set (Test : in out Test_Cases.Test_Case'Class) is
       pragma Unreferenced (Test);
-      Bits : Bit_Set;
+      S : Bit_Set := Create (1, 0);
    begin
-      Initialize (Bits, (Block_Type'Size * 2) + 2);
-      Assert ((Block_Type'Size * 2 + Bits'Size) = Size_In_Bits (Bits), "Size not correctly computed");
-   end Test_Size_In_Bits;
+      Assert (0 = S.Length,                    "Length should be 0");
+      Assert (0 = S.Storage_Size,              "No storage should be used");
+      Assert (S.Is_Empty,                      "An empty set is empty");
+      Assert (S.Is_Full,                       "An empty set is also full");
+      Assert (not Has_Element (S, S.First),    "There is nothing to iterate");
+      S.Fill;
+      S.Flip;
+      S.Include (1, 0);
+      Assert (0 = S.Count,                     "Whole set operations should do nothing");
+   end Test_Empty_Set;
 
    -------------------------
-   -- Test_Test_All_Equal --
+   -- Test_Single_Indexes --
    -------------------------
-   procedure Test_Test_All_Equal (Test : in out Test_Cases.Test_Case'Class) is
+   procedure Test_Single_Indexes (Test : in out Test_Cases.Test_Case'Class) is
       pragma Unreferenced (Test);
-      Bits : Bit_Set;
+      S : Bit_Set := Create (FIRST, LAST);
    begin
-      Initialize (Bits, (Block_Type'Size * 2) + 2);
-      Bits.Blocks.all (Bits.Blocks.all'First) := 0;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := 0;
-      Bits.Remaining_Block := 0;
-      Assert (False = Test_All_Equal (Bits, 42069), "Blocks should not be 42069");
-      Bits.Blocks.all (Bits.Blocks.all'First) := 42069;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := 42069;
-      Bits.Remaining_Block := 42069;
-      Assert (True = Test_All_Equal (Bits, 42069), "Blocks should be 42069");
-   end Test_Test_All_Equal;
+      --  First and last index, and both sides of the first block boundary
+      for I of Integer_Array'[FIRST, 58, 59, LAST] loop
+         S.Include (I);
+         Assert (S.Contains (I), "Index" & I'Image & " should be included");
+      end loop;
+      Assert (not S.Contains (0), "Index 0 should not be included");
+      Assert (4 = S.Count,        "There should be 4 members");
 
-   -----------------------
-   -- Test_Test_All_Set --
-   -----------------------
-   procedure Test_Test_All_Set (Test : in out Test_Cases.Test_Case'Class) is
+      --  Excluding twice must leave the bit clear, not toggle it back on
+      S.Exclude (58);
+      S.Exclude (58);
+      Assert (not S.Contains (58), "Index 58 should be excluded");
+      Assert (3 = S.Count,         "There should be 3 members");
+
+      S.Flip (0);
+      Assert (S.Contains (0),     "Flip should include index 0");
+      S.Flip (0);
+      Assert (not S.Contains (0), "Flip should exclude index 0");
+   end Test_Single_Indexes;
+
+   -----------------
+   -- Test_Ranges --
+   -----------------
+   procedure Test_Ranges (Test : in out Test_Cases.Test_Case'Class) is
       pragma Unreferenced (Test);
-      Bits : Bit_Set;
+      S : Bit_Set := Create (FIRST, LAST);
    begin
-      Initialize (Bits, (Block_Type'Size * 2) + 2);
-      Bits.Blocks.all (Bits.Blocks.all'First) := LOW_ALTERNATING;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := LOW_ALTERNATING;
-      Bits.Remaining_Block := LOW_ALTERNATING;
-      Assert (False = Test_All_Set (Bits), "Bits should not be all 1");
-      Bits.Blocks.all (Bits.Blocks.all'First) := Block_Type'Last;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := Block_Type'Last;
-      Bits.Remaining_Block := Block_Type'Last;
-      Assert (True = Test_All_Set (Bits), "Bits should all be 1");
-   end Test_Test_All_Set;
+      --  Within one block
+      S.Include (10, 20);
+      Assert (11 = S.Count,         "Range within a block should include 11 indexes");
+      Assert (not S.Contains (9),   "Index before the range should not be included");
+      Assert (S.Contains (10),      "First index of the range should be included");
+      Assert (S.Contains (20),      "Last index of the range should be included");
+      Assert (not S.Contains (21),  "Index after the range should not be included");
+
+      --  Across all three blocks
+      S.Include (FIRST, LAST);
+      Assert (S.Is_Full,            "Including every index should fill the set");
+      S.Exclude (0, 100);
+      Assert (LENGTH - 101 = S.Count, "Range across blocks should exclude 101 indexes");
+      Assert (S.Contains (-1),      "Index before the range should still be included");
+      Assert (not S.Contains (0),   "First index of the range should be excluded");
+      Assert (not S.Contains (100), "Last index of the range should be excluded");
+      Assert (S.Contains (101),     "Index after the range should still be included");
+
+      --  Reversed ranges are empty
+      S.Exclude (50, 49);
+      Assert (LENGTH - 101 = S.Count, "A reversed range should change nothing");
+   end Test_Ranges;
+
+   ---------------------
+   -- Test_Whole_Sets --
+   ---------------------
+   procedure Test_Whole_Sets (Test : in out Test_Cases.Test_Case'Class) is
+      pragma Unreferenced (Test);
+      S : Bit_Set := Create (FIRST, LAST);
+   begin
+      S.Flip;
+      Assert (S.Is_Full,         "Flipping an empty set should fill it");
+      Assert (LENGTH = S.Count,  "Flip must not set the unused bits of the last block");
+      S.Flip;
+      Assert (S.Is_Empty,        "Flipping a full set should empty it");
+      S.Fill;
+      Assert (LENGTH = S.Count,  "Fill must not set the unused bits of the last block");
+      S.Exclude (LAST);
+      Assert (not S.Is_Full,     "A set missing its last index is not full");
+      S.Clear;
+      Assert (S.Is_Empty,        "Clear should empty the set");
+   end Test_Whole_Sets;
 
    -------------------------
-   -- Test_Test_All_Unset --
+   -- Test_Set_Operations --
    -------------------------
-   procedure Test_Test_All_Unset (Test : in out Test_Cases.Test_Case'Class) is
+   procedure Test_Set_Operations (Test : in out Test_Cases.Test_Case'Class) is
       pragma Unreferenced (Test);
-      Bits : Bit_Set;
+      A : Bit_Set := Create (FIRST, LAST);
+      B : Bit_Set := Create (FIRST, LAST);
    begin
-      Initialize (Bits, (Block_Type'Size * 2) + 2);
-      Bits.Blocks.all (Bits.Blocks.all'First) := LOW_ALTERNATING;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := LOW_ALTERNATING;
-      Bits.Remaining_Block := LOW_ALTERNATING;
-      Assert (False = Test_All_Unset (Bits), "Bits should not be all 0");
-      Bits.Blocks.all (Bits.Blocks.all'First) := 0;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := 0;
-      Bits.Remaining_Block := 0;
-      Assert (True = Test_All_Unset (Bits), "Bits should all be 0");
-   end Test_Test_All_Unset;
+      A.Include (0, 69);   --  70 members, crosses a block boundary
+      B.Include (60, 89);  --  30 members, 10 shared with A
 
-   ---------------------------
-   -- Test_Count_Population --
-   ---------------------------
-   procedure Test_Count_Population (Test : in out Test_Cases.Test_Case'Class) is
-      pragma Unreferenced (Test);
-      Bits : Bit_Set;
-   begin
-      Initialize (Bits, (Block_Type'Size * 2) + 2);
-      Bits.Blocks.all (Bits.Blocks.all'First) := 0;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := 0;
-      Bits.Remaining_Block := 0;
-      Assert (0 = Count_Population (Bits), "Bits should all be 0");
-      Bits.Blocks.all (Bits.Blocks.all'First) := LOW_ALTERNATING;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := LOW_ALTERNATING;
-      Bits.Remaining_Block := LOW_ALTERNATING;
-      Assert ((Block_Type'Size + 1) = Count_Population (Bits), "Half the bits should be 1");
-   end Test_Count_Population;
+      Assert (90  = Count (A or B),  """or"" should be the union");
+      Assert (10  = Count (A and B), """and"" should be the intersection");
+      Assert (60  = Count (A - B),   """-"" should be the difference");
+      Assert (80  = Count (A xor B), """xor"" should be the symmetric difference");
+      Assert (LENGTH - 70 = Count (not A), """not"" should be the complement");
 
-   -------------------------
-   -- Test_Iterate_Blocks --
-   -------------------------
-   procedure Test_Iterate_Blocks (Test : in out Test_Cases.Test_Case'Class) is
-      pragma Unreferenced (Test);
-
-      Block_Callback_Called     : Natural := 0;
-      Remaining_Callback_Called : Natural := 0;
-
-      procedure Block_Callback (Block       : in out Block_Type;
-                                First_Index : Long_Long_Integer)
-      is begin
-         Assert (2 > Block_Callback_Called, "There should only be 2 calls to this callback. 1 for each block");
-         if 0 = Block_Callback_Called then
-            Assert (1 = Block,       "First Block should be 1");
-            Assert (0 = First_Index, "First Index should be 0");
-         elsif 1 = Block_Callback_Called then
-            Assert (2 = Block,                     "First Block should be 1");
-            Assert (Block_Type'Size = First_Index, "First should be incremented by Block_Type'Size");
-         end if;
-         Block := 42069;
-         Block_Callback_Called := Block_Callback_Called + 1;
-      end Block_Callback;
-
-      procedure Remaining_Callback (Block          : in out Block_Type;
-                                    First_Index    : Long_Long_Integer;
-                                    Remaining_Bits : Bit_Count;
-                                    Remaining_Mask : Block_Type)
-      is begin
-         Assert (0 = Remaining_Callback_Called,     "There should only ever by 1 call to this callback");
-         Assert (3 = Block,                         "First Block should be 1");
-         Assert (Block_Type'Size * 2 = First_Index, "First Index should be Block_Type'Size * 2");
-         Assert (2 = Remaining_Bits,                "There should be 2 remaining bits");
-         Assert (2#11# = Remaining_Mask,            "The mask should indicate 2 remaining bits");
-         Block := 42069;
-         Remaining_Callback_Called := Remaining_Callback_Called + 1;
-      end Remaining_Callback;
-
-      Bits : Bit_Set;
-   begin
-      Initialize (Bits, (Block_Type'Size * 2) + 2, 0);
-      Bits.Blocks.all (Bits.Blocks.all'First) := 1;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := 2;
-      Bits.Remaining_Block := 3;
-      Iterate_Blocks (Bits, Block_Callback'Access, Remaining_Callback'Access);
-      Assert (2 = Block_Callback_Called, "Block Callback should have been called twice");
-      Assert (1 = Remaining_Callback_Called, "Remaining Callback should have been called once");
-      Assert (42069 = Bits.Blocks.all (Bits.Blocks.all'First), "First block should be 42069");
-      Assert (42069 = Bits.Blocks.all (Bits.Blocks.all'Last), "Second block should be 42069");
-      Assert (42069 = Bits.Remaining_Block, "Remaining block should be 42069");
-   end Test_Iterate_Blocks;
-
-   -----------------------
-   -- Test_Iterate_Bits --
-   -----------------------
-   procedure Test_Iterate_Bits (Test : in out Test_Cases.Test_Case'Class) is
-      pragma Unreferenced (Test);
-
-      procedure Bit_Callback (Block  : in out Block_Type;
-                              Index  : Long_Long_Integer;
-                              Offset : Bit_Offset)
-      is begin
-         Assert (2 * Block_Type'Size + 3 > Index, "There should never be more calls than 2 * Block_Type'Size + 3");
-         if Offset mod 2 = 0 then
-            Assert (0 = (Block and Bit_Mask (Offset)), "Odd bits should be off");
-            Set_Bit (Block, Offset);
-         else
-            Assert (0 /= (Block and Bit_Mask (Offset)), "Even bits should be on");
-            Unset_Bit (Block, Offset);
-         end if;
-      end Bit_Callback;
-
-      Bits : Bit_Set;
-   begin
-      Initialize (Bits, (Block_Type'Size * 2) + 2, 0);
-      Bits.Blocks.all (Bits.Blocks.all'First) := HIGH_ALTERNATING;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := HIGH_ALTERNATING;
-      Bits.Remaining_Block := HIGH_ALTERNATING;
-      Iterate_Bits (Bits, Bit_Callback'Access);
-      Assert (LOW_ALTERNATING = Bits.Blocks.all (Bits.Blocks.all'First), "First block should now be 0101...");
-      Assert (LOW_ALTERNATING = Bits.Blocks.all (Bits.Blocks.all'Last), "Second block should now be 0101...");
-      Assert (2#01# = (Bits.Remaining_Block and Bits.Remaining_Mask), "Remaining block should now be #01#");
-   end Test_Iterate_Bits;
-
-   ------------------------
-   -- Test_Reduce_Blocks --
-   ------------------------
-   procedure Test_Reduce_Blocks (Test : in out Test_Cases.Test_Case'Class) is
-      pragma Unreferenced (Test);
-
-      Block_Callback_Called : Natural := 0;
-      Remaining_Callback_Called : Natural := 0;
-      procedure Reduce_Blocks_To_Boolean is new Reduce_Blocks (Result_Type => Boolean);
-
-      procedure Test_Are_42069_Block_Callback (Result      : in out Boolean;
-                                               Block       : Block_Type;
-                                               First_Index : Long_Long_Integer)
-      is begin
-         Assert (2 > Block_Callback_Called, "There should only be 2 calls to this callback. 1 for each block");
-         if 0 = Block_Callback_Called then
-            Assert (0 = First_Index, "First_Index should be 0");
-         else
-            Assert (Block_Type'Size = First_Index, "First_Index should be incremented by Block_Type'Size");
-         end if;
-         Result := Result and then 42069 = Block;
-         Block_Callback_Called := Block_Callback_Called + 1;
-      end Test_Are_42069_Block_Callback;
-
-      procedure Test_Are_42069_Remaining_Callback (Result         : in out Boolean;
-                                                   Block          : Block_Type;
-                                                   First_Index    : Long_Long_Integer;
-                                                   Remaining_Bits : Bit_Count;
-                                                   Remaining_Mask : Block_Type)
-      is begin
-         Assert (0 = Remaining_Callback_Called, "There should only ever by 1 call to this callback");
-         Assert (Block_Type'Size * 2 = First_Index, "First_Index should be 2 * Block_Type'Size");
-         Assert (2 = Remaining_Bits, "Remaining bits should be 2");
-         Assert (2#11# = Remaining_Mask, "Remaining Mask should be 2#11#");
-         Result := Result and then ((42069 and Remaining_Mask) = (Block and Remaining_Mask));
-         Remaining_Callback_Called := Remaining_Callback_Called + 1;
-      end Test_Are_42069_Remaining_Callback;
-
-      Bits : Bit_Set;
-      Result : Boolean := True;
-   begin
-      Initialize (Bits, (Block_Type'Size * 2) + 2, 0);
-      Bits.Blocks.all (Bits.Blocks.all'First) := 0;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := 0;
-      Bits.Remaining_Block := 0;
-      Reduce_Blocks_To_Boolean (Result,
-                                Bits,
-                                Test_Are_42069_Block_Callback'Access,
-                                Test_Are_42069_Remaining_Callback'Access);
-      Assert (False = Result, "Result should be False");
-      Assert (2 = Block_Callback_Called, "Block Callback should have been called twice");
-      Assert (1 = Remaining_Callback_Called, "Remaining Callback should have been called once");
-      Bits.Blocks.all (Bits.Blocks.all'First) := 42069;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := 42069;
-      Bits.Remaining_Block := 42069;
-      Result := True;
-      Block_Callback_Called := 0;
-      Remaining_Callback_Called := 0;
-      Reduce_Blocks_To_Boolean (Result,
-                                Bits,
-                                Test_Are_42069_Block_Callback'Access,
-                                Test_Are_42069_Remaining_Callback'Access);
-      Assert (True = Result, "Result should be True");
-      Assert (2 = Block_Callback_Called, "Block Callback should have been called twice");
-      Assert (1 = Remaining_Callback_Called, "Remaining Callback should have been called once");
-   end Test_Reduce_Blocks;
+      declare
+         Target : Bit_Set := Copy (A);
+      begin
+         Target.Union (B);
+         Assert (Target = (A or B),  "Union should match ""or""");
+         Target.Assign (A);
+         Target.Intersection (B);
+         Assert (Target = (A and B), "Intersection should match ""and""");
+         Target.Assign (A);
+         Target.Difference (B);
+         Assert (Target = A - B,     "Difference should match ""-""");
+         Target.Assign (A);
+         Target.Symmetric_Difference (B);
+         Assert (Target = (A xor B), "Symmetric_Difference should match ""xor""");
+      end;
+   end Test_Set_Operations;
 
    ----------------------
-   -- Test_Reduce_Bits --
+   -- Test_Comparisons --
    ----------------------
-   procedure Test_Reduce_Bits (Test : in out Test_Cases.Test_Case'Class) is
+   procedure Test_Comparisons (Test : in out Test_Cases.Test_Case'Class) is
+      pragma Unreferenced (Test);
+      Small   : Bit_Set := Create (FIRST, LAST);
+      Large   : Bit_Set := Create (FIRST, LAST);
+      Other   : Bit_Set := Create (FIRST, LAST);
+      Shifted : constant Bit_Set := Create (FIRST + 1, LAST + 1);
+   begin
+      Small.Include (10, 20);
+      Large.Include (0, 100);
+      Other.Include (110, 120);
+
+      Assert (Small = Small,             "A set equals itself");
+      Assert (Small /= Large,            "Sets with different members are not equal");
+      Assert (Create (FIRST, LAST) /= Shifted, "Sets with different bounds are not equal");
+      Assert (Small <= Large,            "Small is a subset of Large");
+      Assert (not (Large <= Small),      "Large is not a subset of Small");
+      Assert (Small.Overlaps (Large),    "Small and Large overlap");
+      Assert (not Small.Overlaps (Other), "Small and Other do not overlap");
+   end Test_Comparisons;
+
+   --------------------------
+   -- Test_Copy_And_Assign --
+   --------------------------
+   procedure Test_Copy_And_Assign (Test : in out Test_Cases.Test_Case'Class) is
+      pragma Unreferenced (Test);
+      Original : Bit_Set := Create (FIRST, LAST);
+   begin
+      Original.Include (42);
+      declare
+         Duplicate : Bit_Set := Copy (Original);
+      begin
+         Assert (Duplicate = Original,    "A copy should equal the original");
+         Duplicate.Include (43);
+         Assert (not Original.Contains (43), "Changing a copy must not change the original");
+         Duplicate.Assign (Original);
+         Assert (Duplicate = Original,    "Assign should copy the contents");
+      end;
+      Assert (Original.Contains (42),     "The original should survive its copy being finalized");
+   end Test_Copy_And_Assign;
+
+   --------------------
+   -- Test_Iteration --
+   --------------------
+   procedure Test_Iteration (Test : in out Test_Cases.Test_Case'Class) is
+      pragma Unreferenced (Test);
+      Expected : constant Integer_Array := [FIRST, 58, 59, 100, LAST];
+      S        : Bit_Set := Create (FIRST, LAST);
+      Visited  : Natural := 0;
+   begin
+      for I of Expected loop
+         S.Include (I);
+      end loop;
+
+      for I of S loop
+         Visited := Visited + 1;
+         Assert (Visited <= Expected'Length, "Visited more indexes than were included");
+         Assert (Expected (Visited) = I,     "Expected" & Expected (Visited)'Image & " but got" & I'Image);
+      end loop;
+      Assert (Expected'Length = Visited, "Every included index should be visited");
+
+      Assert (100 = Element (S, S.Find (60)), "Find should skip to the next member");
+      Assert (LAST = Element (S, S.Find (LAST)), "Find should include its starting index");
+      S.Exclude (LAST);
+      Assert (not Has_Element (S, S.Find (101)), "Find past the last member should give No_Element");
+   end Test_Iteration;
+
+   -----------------
+   -- Test_Shifts --
+   -----------------
+   procedure Test_Shifts (Test : in out Test_Cases.Test_Case'Class) is
       pragma Unreferenced (Test);
 
-      procedure Reduce_Bits_To_Boolean is new Reduce_Bits (Result_Type => Boolean);
+      --  Sizes around every block boundary, word aligned and not, and past the end
+      AMOUNTS : constant array (Positive range <>) of Count_Type :=
+        [0, 1, 7, 63, 64, 65, 70, 127, 128, 129, LENGTH - 1, LENGTH, LENGTH + 50];
 
-      procedure Test_Is_Alternating_Bit_Callback (Result : in out Boolean;
-                                                  Block  : Block_Type;
-                                                  Index  : Long_Long_Integer;
-                                                  Offset : Bit_Offset)
-      is begin
-         Assert (2 * Block_Type'Size + 3 > Index, "There should never be more calls than 2 * Block_Type'Size + 3");
+      Original : Bit_Set := Create (FIRST, LAST);
 
-         if Offset mod 2 = 0 then
-            Result := Result and then Test_Bit (Block, Offset);
-         else
-            Result := Result and then not Test_Bit (Block, Offset);
-         end if;
-      end Test_Is_Alternating_Bit_Callback;
-
-      Bits : Bit_Set;
-      Result : Boolean := True;
+      --  The expected result, built one index at a time
+      function Reference (Amount : Count_Type; Left : Boolean) return Bit_Set is
+      begin
+         return Expected : Bit_Set := Create (FIRST, LAST) do
+            for I of Original loop
+               declare
+                  Moved : constant Long_Long_Integer :=
+                    Long_Long_Integer (I) + (if Left then 1 else -1) * Long_Long_Integer (Amount);
+               begin
+                  if Moved in FIRST .. LAST then
+                     Expected.Include (Integer (Moved));
+                  end if;
+               end;
+            end loop;
+         end return;
+      end Reference;
    begin
-      Initialize (Bits, (Block_Type'Size * 2) + 2, 0);
-      Bits.Blocks.all (Bits.Blocks.all'First) := LOW_ALTERNATING;
-      Bits.Blocks.all (Bits.Blocks.all'Last)  := LOW_ALTERNATING;
-      Bits.Remaining_Block := LOW_ALTERNATING;
-      Reduce_Bits_To_Boolean (Result,
-                              Bits,
-                              Test_Is_Alternating_Bit_Callback'Access);
-      Assert (True = Result, "Result should be True");
-   end Test_Reduce_Bits;
+      for I of Integer_Array'[FIRST, FIRST + 1, 0, 58, 59, 63, 64, 100, LAST - 1, LAST] loop
+         Original.Include (I);
+      end loop;
+
+      for Amount of AMOUNTS loop
+         Assert (Shift_Left (Original, Amount) = Reference (Amount, Left => True),
+                 "Shift_Left by" & Amount'Image & " gave " & Shift_Left (Original, Amount)'Image
+                 & " expected " & Reference (Amount, Left => True)'Image);
+         Assert (Shift_Right (Original, Amount) = Reference (Amount, Left => False),
+                 "Shift_Right by" & Amount'Image & " gave " & Shift_Right (Original, Amount)'Image
+                 & " expected " & Reference (Amount, Left => False)'Image);
+      end loop;
+
+      --  Shifting a full set left must not set the unused bits of the last block
+      declare
+         Full : Bit_Set := Create (FIRST, LAST, Value => True);
+      begin
+         Full.Shift_Left (3);
+         Assert (LENGTH - 3 = Full.Count, "Shift_Left must drop members shifted past Last");
+         Assert (not Full.Contains (FIRST + 2) and then Full.Contains (FIRST + 3),
+                 "Shift_Left must exclude the vacated indexes");
+         Full.Shift_Right (10);
+         Assert (LENGTH - 10 = Full.Count, "Shift_Right must drop members shifted past First");
+         Assert (Full.Contains (LAST - 10) and then not Full.Contains (LAST - 9),
+                 "Shift_Right must exclude the vacated indexes");
+      end;
+   end Test_Shifts;
+
+   ------------------------
+   -- Test_Union_Shifted --
+   ------------------------
+   procedure Test_Union_Shifted (Test : in out Test_Cases.Test_Case'Class) is
+      pragma Unreferenced (Test);
+
+      AMOUNTS : constant array (Positive range <>) of Count_Type :=
+        [0, 1, 7, 63, 64, 65, 70, 127, 128, 129, LENGTH - 1, LENGTH, LENGTH + 50];
+
+      Target : Bit_Set := Create (FIRST, LAST);
+      Source : Bit_Set := Create (FIRST, LAST);
+   begin
+      Target.Include (-3, 4);
+      Target.Include (90);
+
+      --  The block boundaries and ends, plus a dense irregular pattern so carries
+      --  between blocks happen at every amount. An aliased shift done in the wrong
+      --  order only shows up when bits near the top of a block move into the next.
+      for I of Integer_Array'[FIRST, 0, 58, 59, 63, 64, 100, LAST] loop
+         Source.Include (I);
+      end loop;
+      for I in FIRST .. LAST loop
+         if (I * 37) mod 11 < 4 then
+            Source.Include (I);
+         end if;
+      end loop;
+
+      for Amount of AMOUNTS loop
+         --  Separate sets
+         declare
+            Expected : constant Bit_Set := Target or Shift_Left (Source, Amount);
+            Actual   : Bit_Set := Copy (Target);
+         begin
+            Actual.Union_Shifted (Source, Amount);
+            Assert (Actual = Expected,
+                    "Union_Shifted by" & Amount'Image & " gave " & Actual'Image & " expected " & Expected'Image);
+         end;
+
+         --  Source is Target
+         declare
+            Expected : constant Bit_Set := Source or Shift_Left (Source, Amount);
+            Actual   : Bit_Set := Copy (Source);
+         begin
+            Union_Shifted (Actual, Actual, Amount);
+            Assert (Actual = Expected,
+                    "Aliased Union_Shifted by" & Amount'Image & " gave " & Actual'Image
+                    & " expected " & Expected'Image);
+         end;
+      end loop;
+
+      --  Subset sums of 3, 5 and 7 up to 20
+      declare
+         Reachable : Bit_Set := Create (0, 20);
+      begin
+         Reachable.Include (0);
+         for W of Integer_Array'[3, 5, 7] loop
+            Union_Shifted (Reachable, Reachable, Count_Type (W));
+         end loop;
+         Assert ("{0, 3, 5, 7, 8, 10, 12, 15}" = Reachable'Image, "Subset sums were " & Reachable'Image);
+      end;
+   end Test_Union_Shifted;
+
+   ----------------
+   -- Test_Image --
+   ----------------
+   procedure Test_Image (Test : in out Test_Cases.Test_Case'Class) is
+      pragma Unreferenced (Test);
+      S : Bit_Set := Create (FIRST, LAST);
+   begin
+      Assert ("{}" = S'Image, "Empty set image was " & S'Image);
+
+      S.Include (10);
+      Assert ("{10}" = S'Image, "Single member image was " & S'Image);
+
+      S.Include (FIRST, 2);
+      S.Include (58, 59);
+      S.Include (100, LAST);
+      Assert ("{-5 .. 2, 10, 58, 59, 100 .. 130}" = S'Image, "Runs image was " & S'Image);
+
+      S.Include (60, 99);
+      Assert ("{-5 .. 2, 10, 58 .. 130}" = S'Image, "Run across blocks image was " & S'Image);
+
+      S.Fill;
+      Assert ("{-5 .. 130}" = S'Image, "Full set image was " & S'Image);
+      Assert ("{}" = Create (1, 0)'Image, "Zero length set image was " & Create (1, 0)'Image);
+   end Test_Image;
+
+   ------------------------
+   -- Test_Preconditions --
+   ------------------------
+   procedure Test_Preconditions (Test : in out Test_Cases.Test_Case'Class) is
+      pragma Unreferenced (Test);
+      S     : Bit_Set := Create (FIRST, LAST);
+      Other : constant Bit_Set := Create (FIRST, LAST + 1);
+   begin
+      begin
+         S.Include (LAST + 1);
+         Assert (False, "Including an index out of range should fail");
+      exception
+         when Ada.Assertions.Assertion_Error => null;
+      end;
+
+      begin
+         S.Union (Other);
+         Assert (False, "Combining sets with different bounds should fail");
+      exception
+         when Ada.Assertions.Assertion_Error => null;
+      end;
+   end Test_Preconditions;
 
 end Bit_Sets.Bit_Set_Tests;

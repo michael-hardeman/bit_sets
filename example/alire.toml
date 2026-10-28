@@ -12,7 +12,16 @@ tags = []
 executables = ["main"]
 
 [[depends-on]]
-bit_sets = "~1.0.0"
+bit_sets = "~2.0.0"
 
 [[pins]]
-bit_sets = { path='../bit_sets' }
+bit_sets = { path='..' }
+
+# Development reports every error it can: contracts (Pre/Post) and all runtime checks.
+# Release drops every check for speed. Bit_Sets.Generic_Sets is a generic, so the crate
+# that instantiates it decides which of these apply.
+[build-switches]
+development.contracts = "Yes"
+development.runtime_checks = "Everything"
+release.contracts = "No"
+release.runtime_checks = "None"

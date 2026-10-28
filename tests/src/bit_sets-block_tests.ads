@@ -26,12 +26,9 @@ package Bit_Sets.Block_Tests is
 
    overriding procedure Register_Tests (Test : in out Test_Case);
 
-   procedure Test_To_Offset         (Test : in out Test_Cases.Test_Case'Class);
-   procedure Test_To_Index          (Test : in out Test_Cases.Test_Case'Class);
-   procedure Test_Bit_Mask          (Test : in out Test_Cases.Test_Case'Class);
-   procedure Test_Leading_Bits_Mask (Test : in out Test_Cases.Test_Case'Class);
-   procedure Test_Test_Bit          (Test : in out Test_Cases.Test_Case'Class);
-   procedure Test_Set_Bit           (Test : in out Test_Cases.Test_Case'Class);
-   procedure Test_Unset_Bit         (Test : in out Test_Cases.Test_Case'Class);
-   procedure Test_Pop_Count         (Test : in out Test_Cases.Test_Case'Class);
+   procedure Test_Bit_Mask             (Test : in out Test_Cases.Test_Case'Class);
+   procedure Test_Low_Mask             (Test : in out Test_Cases.Test_Case'Class);
+   procedure Test_High_Mask            (Test : in out Test_Cases.Test_Case'Class);
+   procedure Test_Pop_Count            (Test : in out Test_Cases.Test_Case'Class);
+   procedure Test_Count_Trailing_Zeros (Test : in out Test_Cases.Test_Case'Class);
 end Bit_Sets.Block_Tests;
