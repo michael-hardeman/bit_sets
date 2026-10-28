@@ -42,6 +42,18 @@ Sets of the same bounds combine in place with `Union`, `Intersection`, `Differen
 `Symmetric_Difference`, or into a new set with `or`, `and`, `-`, `xor` and `not`. `Bit_Set` is
 limited so a large set is never copied by accident; use `Copy` or `Assign` when you mean to.
 
+`Shift_Left` and `Shift_Right` move every member up or down by some amount, a whole word at a
+time. They make bitset dynamic programming fast, for example the sums reachable from a list of
+weights:
+
+    Reachable : Bit_Set := Create (0, Max_Sum);
+    Reachable.Include (0);
+    for W of Weights loop
+       Reachable.Union (Shift_Left (Reachable, W));
+    end loop;
+
+`S'Image` lists the members with runs as ranges, e.g. `{-5 .. 2, 10, 58, 59, 100 .. 130}`.
+
 Out of range indexes are caught by preconditions, compile with `-gnata` to check them.
 
 See [example](./example) for a Sieve of Eratosthenes comparing a `Boolean` array to a `Bit_Set`.

@@ -46,6 +46,8 @@ package body Bit_Sets.Bit_Set_Tests is
       Register_Routine (Test, Test_Comparisons'Access,     "Comparisons");
       Register_Routine (Test, Test_Copy_And_Assign'Access, "Copy_And_Assign");
       Register_Routine (Test, Test_Iteration'Access,       "Iteration");
+      Register_Routine (Test, Test_Shifts'Access,          "Shifts");
+      Register_Routine (Test, Test_Image'Access,           "Image");
       Register_Routine (Test, Test_Preconditions'Access,   "Preconditions");
    end Register_Tests;
 
@@ -264,6 +266,88 @@ package body Bit_Sets.Bit_Set_Tests is
       S.Exclude (LAST);
       Assert (not Has_Element (S, S.Find (101)), "Find past the last member should give No_Element");
    end Test_Iteration;
+
+   -----------------
+   -- Test_Shifts --
+   -----------------
+   procedure Test_Shifts (Test : in out Test_Cases.Test_Case'Class) is
+      pragma Unreferenced (Test);
+
+      --  Sizes around every block boundary, word aligned and not, and past the end
+      AMOUNTS : constant array (Positive range <>) of Count_Type :=
+        [0, 1, 7, 63, 64, 65, 70, 127, 128, 129, LENGTH - 1, LENGTH, LENGTH + 50];
+
+      Original : Bit_Set := Create (FIRST, LAST);
+
+      --  The expected result, built one index at a time
+      function Reference (Amount : Count_Type; Left : Boolean) return Bit_Set is
+      begin
+         return Expected : Bit_Set := Create (FIRST, LAST) do
+            for I of Original loop
+               declare
+                  Moved : constant Long_Long_Integer :=
+                    Long_Long_Integer (I) + (if Left then 1 else -1) * Long_Long_Integer (Amount);
+               begin
+                  if Moved in FIRST .. LAST then
+                     Expected.Include (Integer (Moved));
+                  end if;
+               end;
+            end loop;
+         end return;
+      end Reference;
+   begin
+      for I of Integer_Array'[FIRST, FIRST + 1, 0, 58, 59, 63, 64, 100, LAST - 1, LAST] loop
+         Original.Include (I);
+      end loop;
+
+      for Amount of AMOUNTS loop
+         Assert (Shift_Left (Original, Amount) = Reference (Amount, Left => True),
+                 "Shift_Left by" & Amount'Image & " gave " & Shift_Left (Original, Amount)'Image
+                 & " expected " & Reference (Amount, Left => True)'Image);
+         Assert (Shift_Right (Original, Amount) = Reference (Amount, Left => False),
+                 "Shift_Right by" & Amount'Image & " gave " & Shift_Right (Original, Amount)'Image
+                 & " expected " & Reference (Amount, Left => False)'Image);
+      end loop;
+
+      --  Shifting a full set left must not set the unused bits of the last block
+      declare
+         Full : Bit_Set := Create (FIRST, LAST, Value => True);
+      begin
+         Full.Shift_Left (3);
+         Assert (LENGTH - 3 = Full.Count, "Shift_Left must drop members shifted past Last");
+         Assert (not Full.Contains (FIRST + 2) and then Full.Contains (FIRST + 3),
+                 "Shift_Left must exclude the vacated indexes");
+         Full.Shift_Right (10);
+         Assert (LENGTH - 10 = Full.Count, "Shift_Right must drop members shifted past First");
+         Assert (Full.Contains (LAST - 10) and then not Full.Contains (LAST - 9),
+                 "Shift_Right must exclude the vacated indexes");
+      end;
+   end Test_Shifts;
+
+   ----------------
+   -- Test_Image --
+   ----------------
+   procedure Test_Image (Test : in out Test_Cases.Test_Case'Class) is
+      pragma Unreferenced (Test);
+      S : Bit_Set := Create (FIRST, LAST);
+   begin
+      Assert ("{}" = S'Image, "Empty set image was " & S'Image);
+
+      S.Include (10);
+      Assert ("{10}" = S'Image, "Single member image was " & S'Image);
+
+      S.Include (FIRST, 2);
+      S.Include (58, 59);
+      S.Include (100, LAST);
+      Assert ("{-5 .. 2, 10, 58, 59, 100 .. 130}" = S'Image, "Runs image was " & S'Image);
+
+      S.Include (60, 99);
+      Assert ("{-5 .. 2, 10, 58 .. 130}" = S'Image, "Run across blocks image was " & S'Image);
+
+      S.Fill;
+      Assert ("{-5 .. 130}" = S'Image, "Full set image was " & S'Image);
+      Assert ("{}" = Create (1, 0)'Image, "Zero length set image was " & Create (1, 0)'Image);
+   end Test_Image;
 
    ------------------------
    -- Test_Preconditions --

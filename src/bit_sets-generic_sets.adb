@@ -15,6 +15,8 @@
 --  Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
 --  Boston, MA  02110-1301, USA.
 
+with Ada.Strings;       use Ada.Strings;
+with Ada.Strings.Fixed; use Ada.Strings.Fixed;
 with Ada.Unchecked_Deallocation;
 
 package body Bit_Sets.Generic_Sets is
@@ -325,6 +327,93 @@ package body Bit_Sets.Generic_Sets is
       end return;
    end "not";
 
+   ----------------
+   -- Shift_Left --
+   ----------------
+   --  Block N takes the high bits of block N - Words and the low bits of the
+   --  block below it, like libstdc++'s bitset
+   procedure Shift_Left (S : in out Bit_Set; Amount : Count_Type) is
+   begin
+      if Amount >= S.Length then
+         Clear (S);
+         return;
+      end if;
+
+      declare
+         Words  : constant Count_Type := Amount / Block_Size;
+         Bits   : constant Natural    := Natural (Amount mod Block_Size);
+         Last   : constant Count_Type := S.Blocks'Last;
+         Blocks : Block_Array renames S.Blocks.all;
+      begin
+         if Bits = 0 then
+            for N in reverse Words .. Last loop
+               Blocks (N) := Blocks (N - Words);
+            end loop;
+         else
+            for N in reverse Words + 1 .. Last loop
+               Blocks (N) := Shift_Left (Blocks (N - Words), Bits)
+                          or Shift_Right (Blocks (N - Words - 1), Block_Size - Bits);
+            end loop;
+            Blocks (Words) := Shift_Left (Blocks (0), Bits);
+         end if;
+         for N in 0 .. Words - 1 loop
+            Blocks (N) := ALL_ZEROS;
+         end loop;
+      end;
+      Clear_Tail (S);
+   end Shift_Left;
+
+   -----------------
+   -- Shift_Right --
+   -----------------
+   --  Block N takes the low bits of block N + Words and the high bits of the
+   --  block above it. The final block's unused bits are 0, so nothing new
+   --  needs clearing at the top.
+   procedure Shift_Right (S : in out Bit_Set; Amount : Count_Type) is
+   begin
+      if Amount >= S.Length then
+         Clear (S);
+         return;
+      end if;
+
+      declare
+         Words  : constant Count_Type := Amount / Block_Size;
+         Bits   : constant Natural    := Natural (Amount mod Block_Size);
+         Last   : constant Count_Type := S.Blocks'Last;
+         Limit  : constant Count_Type := Last - Words;
+         Blocks : Block_Array renames S.Blocks.all;
+      begin
+         if Bits = 0 then
+            for N in 0 .. Limit loop
+               Blocks (N) := Blocks (N + Words);
+            end loop;
+         else
+            for N in 0 .. Limit - 1 loop
+               Blocks (N) := Shift_Right (Blocks (N + Words), Bits)
+                          or Shift_Left (Blocks (N + Words + 1), Block_Size - Bits);
+            end loop;
+            Blocks (Limit) := Shift_Right (Blocks (Last), Bits);
+         end if;
+         for N in Limit + 1 .. Last loop
+            Blocks (N) := ALL_ZEROS;
+         end loop;
+      end;
+   end Shift_Right;
+
+   function Shift_Left (S : Bit_Set; Amount : Count_Type) return Bit_Set is
+   begin
+      return Result : Bit_Set := Copy (S) do
+         Shift_Left (Result, Amount);
+      end return;
+   end Shift_Left;
+
+   function Shift_Right (S : Bit_Set; Amount : Count_Type) return Bit_Set is
+   begin
+      return Result : Bit_Set := Copy (S) do
+         Shift_Right (Result, Amount);
+      end return;
+   end Shift_Right;
+
    -----------------
    -- Comparisons --
    -----------------
@@ -357,6 +446,29 @@ package body Bit_Sets.Generic_Sets is
       return No_Element;
    end Find;
 
+   -------------------
+   -- Next_Excluded --
+   -------------------
+   --  The offset of the first excluded index at or after From, or Length when
+   --  every index from there to Last is in the set
+   function Next_Excluded (S : Bit_Set; From : Bit_Position) return Bit_Position is
+      B     : Count_Type := Block_Of (From);
+      Block : Block_Type := (not S.Blocks (B)) and High_Mask (Bit_Of (From));
+   begin
+      loop
+         if Block /= ALL_ZEROS then
+            --  The unused bits past Last are 0 so they show up here, hence the Min
+            return Bit_Position'Min
+              (Bit_Position (B * Block_Size) + Bit_Position (Count_Trailing_Zeros (Block)),
+               Bit_Position (S.Length));
+         end if;
+         exit when B = S.Blocks'Last;
+         B     := B + 1;
+         Block := not S.Blocks (B);
+      end loop;
+      return Bit_Position (S.Length);
+   end Next_Excluded;
+
    ---------------
    -- Iteration --
    ---------------
@@ -378,6 +490,41 @@ package body Bit_Sets.Generic_Sets is
    begin
       return Position.Index;
    end Element;
+
+   ---------------
+   -- Put_Image --
+   ---------------
+   procedure Put_Image (Buffer : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; S : Bit_Set) is
+      function Image (Index : Index_Type) return String is (Trim (Index'Image, Left));
+
+      Position : Cursor  := First (S);
+      Is_First : Boolean := True;
+   begin
+      Buffer.Put ("{");
+      while Position.Valid loop
+         declare
+            Run_First : constant Index_Type := Position.Index;
+            Run_Last  : constant Index_Type :=
+              Index_At (S, Count_Type (Next_Excluded (S, Offset_Of (S, Run_First))) - 1);
+         begin
+            if not Is_First then
+               Buffer.Put (", ");
+            end if;
+            Is_First := False;
+
+            if Run_First = Run_Last then
+               Buffer.Put (Image (Run_First));
+            elsif Index_Type'Succ (Run_First) = Run_Last then
+               Buffer.Put (Image (Run_First) & ", " & Image (Run_Last));
+            else
+               Buffer.Put (Image (Run_First) & " .. " & Image (Run_Last));
+            end if;
+
+            Position := (if Run_Last = S.Last then No_Element else Find (S, Index_Type'Succ (Run_Last)));
+         end;
+      end loop;
+      Buffer.Put ("}");
+   end Put_Image;
 
    --------------
    -- Finalize --

@@ -16,6 +16,7 @@
 --  Boston, MA  02110-1301, USA.
 
 with Ada.Finalization;
+with Ada.Strings.Text_Buffers;
 
 private with Bit_Sets.Blocks;
 
@@ -42,10 +43,11 @@ generic
 package Bit_Sets.Generic_Sets is
 
    type Bit_Set (<>) is new Ada.Finalization.Limited_Controlled with private
-     with Iterable => (First       => First,
-                       Next        => Next,
-                       Has_Element => Has_Element,
-                       Element     => Element);
+     with Iterable  => (First       => First,
+                        Next        => Next,
+                        Has_Element => Has_Element,
+                        Element     => Element),
+          Put_Image => Put_Image;
 
    ------------
    -- Cursor --
@@ -149,6 +151,19 @@ package Bit_Sets.Generic_Sets is
    function "-"   (Left, Right : Bit_Set) return Bit_Set with Pre => Same_Bounds (Left, Right);
    function "not" (S : Bit_Set) return Bit_Set;
 
+   ------------
+   -- Shifts --
+   ------------
+   --  Shift_Left moves every member I to I + Amount, Shift_Right to I - Amount.
+   --  Members shifted past either end are dropped and the indexes left behind
+   --  are excluded. Whole blocks are moved at once.
+   procedure Shift_Left  (S : in out Bit_Set; Amount : Count_Type);
+   procedure Shift_Right (S : in out Bit_Set; Amount : Count_Type);
+
+   --  Each returns a newly allocated set
+   function Shift_Left  (S : Bit_Set; Amount : Count_Type) return Bit_Set;
+   function Shift_Right (S : Bit_Set; Amount : Count_Type) return Bit_Set;
+
    -----------------
    -- Comparisons --
    -----------------
@@ -176,6 +191,13 @@ package Bit_Sets.Generic_Sets is
    --  The first index at or after From that is in the set
    function Find (S : Bit_Set; From : Index_Type) return Cursor
      with Pre => In_Range (S, From);
+
+   ---------------
+   -- Put_Image --
+   ---------------
+   --  S'Image lists the members, with runs of three or more as ranges:
+   --     {-5 .. 2, 10, 58, 59, 100 .. 130}
+   procedure Put_Image (Buffer : in out Ada.Strings.Text_Buffers.Root_Buffer_Type'Class; S : Bit_Set);
 
 private
 

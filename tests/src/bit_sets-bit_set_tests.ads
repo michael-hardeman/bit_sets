@@ -37,5 +37,7 @@ package Bit_Sets.Bit_Set_Tests is
    procedure Test_Comparisons     (Test : in out Test_Cases.Test_Case'Class);
    procedure Test_Copy_And_Assign (Test : in out Test_Cases.Test_Case'Class);
    procedure Test_Iteration       (Test : in out Test_Cases.Test_Case'Class);
+   procedure Test_Shifts          (Test : in out Test_Cases.Test_Case'Class);
+   procedure Test_Image           (Test : in out Test_Cases.Test_Case'Class);
    procedure Test_Preconditions   (Test : in out Test_Cases.Test_Case'Class);
 end Bit_Sets.Bit_Set_Tests;
