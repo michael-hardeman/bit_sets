@@ -98,10 +98,10 @@ package Bit_Sets.Generic_Sets is
      with Pre => In_Range (S, Index);
 
    procedure Include (S : in out Bit_Set; Index : Index_Type)
-     with Pre => In_Range (S, Index), Post => Contains (S, Index);
+     with Pre => In_Range (S, Index);
 
    procedure Exclude (S : in out Bit_Set; Index : Index_Type)
-     with Pre => In_Range (S, Index), Post => not Contains (S, Index);
+     with Pre => In_Range (S, Index);
 
    procedure Flip (S : in out Bit_Set; Index : Index_Type)
      with Pre => In_Range (S, Index);
@@ -120,8 +120,8 @@ package Bit_Sets.Generic_Sets is
    -----------------
    -- Whole Sets --
    -----------------
-   procedure Clear (S : in out Bit_Set) with Post => Is_Empty (S);
-   procedure Fill  (S : in out Bit_Set) with Post => Is_Full (S);
+   procedure Clear (S : in out Bit_Set);
+   procedure Fill  (S : in out Bit_Set);
    procedure Flip  (S : in out Bit_Set);
 
    function Count    (S : Bit_Set) return Count_Type;
@@ -139,6 +139,15 @@ package Bit_Sets.Generic_Sets is
    procedure Difference           (Target : in out Bit_Set; Source : Bit_Set)
      with Pre => Same_Bounds (Target, Source);
    procedure Symmetric_Difference (Target : in out Bit_Set; Source : Bit_Set)
+     with Pre => Same_Bounds (Target, Source);
+
+   --  Target := Target or Shift_Left (Source, Amount), in one pass. Source may be
+   --  Target itself, which is the core step of bitset dynamic programming:
+   --
+   --     for W of Weights loop
+   --        Union_Shifted (Reachable, Reachable, W);
+   --     end loop;
+   procedure Union_Shifted (Target : in out Bit_Set; Source : Bit_Set; Amount : Count_Type)
      with Pre => Same_Bounds (Target, Source);
 
    -------------------

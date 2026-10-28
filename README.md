@@ -49,8 +49,11 @@ weights:
     Reachable : Bit_Set := Create (0, Max_Sum);
     Reachable.Include (0);
     for W of Weights loop
-       Reachable.Union (Shift_Left (Reachable, W));
+       Union_Shifted (Reachable, Reachable, W);  --  Reachable := Reachable or Shift_Left (Reachable, W)
     end loop;
+
+`Union_Shifted` does the shift and the union in one pass without allocating, and its source
+may be its target.
 
 `S'Image` lists the members with runs as ranges, e.g. `{-5 .. 2, 10, 58, 59, 100 .. 130}`.
 

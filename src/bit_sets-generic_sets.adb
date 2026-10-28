@@ -290,6 +290,40 @@ package body Bit_Sets.Generic_Sets is
    procedure Symmetric_Difference (Target : in out Bit_Set; Source : Bit_Set) renames Symmetric_Difference_Into;
 
    -------------------
+   -- Union_Shifted --
+   -------------------
+   --  Walks from the highest block down. Block N only reads Source blocks N and
+   --  below, which have not been written yet, so Source may be Target.
+   procedure Union_Shifted (Target : in out Bit_Set; Source : Bit_Set; Amount : Count_Type) is
+   begin
+      if Amount >= Target.Length then
+         return;
+      end if;
+
+      declare
+         Words : constant Count_Type := Amount / Block_Size;
+         Bits  : constant Natural    := Natural (Amount mod Block_Size);
+         Last  : constant Count_Type := Target.Blocks'Last;
+         Into  : Block_Array renames Target.Blocks.all;
+         From  : Block_Array renames Source.Blocks.all;
+      begin
+         if Bits = 0 then
+            for N in reverse Words .. Last loop
+               Into (N) := Into (N) or From (N - Words);
+            end loop;
+         else
+            for N in reverse Words + 1 .. Last loop
+               Into (N) := Into (N)
+                        or Shift_Left (From (N - Words), Bits)
+                        or Shift_Right (From (N - Words - 1), Block_Size - Bits);
+            end loop;
+            Into (Words) := Into (Words) or Shift_Left (From (0), Bits);
+         end if;
+      end;
+      Clear_Tail (Target);
+   end Union_Shifted;
+
+   -------------------
    -- Set Operators --
    -------------------
    function "or" (Left, Right : Bit_Set) return Bit_Set is

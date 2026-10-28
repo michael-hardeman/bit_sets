@@ -47,6 +47,7 @@ package body Bit_Sets.Bit_Set_Tests is
       Register_Routine (Test, Test_Copy_And_Assign'Access, "Copy_And_Assign");
       Register_Routine (Test, Test_Iteration'Access,       "Iteration");
       Register_Routine (Test, Test_Shifts'Access,          "Shifts");
+      Register_Routine (Test, Test_Union_Shifted'Access,   "Union_Shifted");
       Register_Routine (Test, Test_Image'Access,           "Image");
       Register_Routine (Test, Test_Preconditions'Access,   "Preconditions");
    end Register_Tests;
@@ -323,6 +324,68 @@ package body Bit_Sets.Bit_Set_Tests is
                  "Shift_Right must exclude the vacated indexes");
       end;
    end Test_Shifts;
+
+   ------------------------
+   -- Test_Union_Shifted --
+   ------------------------
+   procedure Test_Union_Shifted (Test : in out Test_Cases.Test_Case'Class) is
+      pragma Unreferenced (Test);
+
+      AMOUNTS : constant array (Positive range <>) of Count_Type :=
+        [0, 1, 7, 63, 64, 65, 70, 127, 128, 129, LENGTH - 1, LENGTH, LENGTH + 50];
+
+      Target : Bit_Set := Create (FIRST, LAST);
+      Source : Bit_Set := Create (FIRST, LAST);
+   begin
+      Target.Include (-3, 4);
+      Target.Include (90);
+
+      --  The block boundaries and ends, plus a dense irregular pattern so carries
+      --  between blocks happen at every amount. An aliased shift done in the wrong
+      --  order only shows up when bits near the top of a block move into the next.
+      for I of Integer_Array'[FIRST, 0, 58, 59, 63, 64, 100, LAST] loop
+         Source.Include (I);
+      end loop;
+      for I in FIRST .. LAST loop
+         if (I * 37) mod 11 < 4 then
+            Source.Include (I);
+         end if;
+      end loop;
+
+      for Amount of AMOUNTS loop
+         --  Separate sets
+         declare
+            Expected : constant Bit_Set := Target or Shift_Left (Source, Amount);
+            Actual   : Bit_Set := Copy (Target);
+         begin
+            Actual.Union_Shifted (Source, Amount);
+            Assert (Actual = Expected,
+                    "Union_Shifted by" & Amount'Image & " gave " & Actual'Image & " expected " & Expected'Image);
+         end;
+
+         --  Source is Target
+         declare
+            Expected : constant Bit_Set := Source or Shift_Left (Source, Amount);
+            Actual   : Bit_Set := Copy (Source);
+         begin
+            Union_Shifted (Actual, Actual, Amount);
+            Assert (Actual = Expected,
+                    "Aliased Union_Shifted by" & Amount'Image & " gave " & Actual'Image
+                    & " expected " & Expected'Image);
+         end;
+      end loop;
+
+      --  Subset sums of 3, 5 and 7 up to 20
+      declare
+         Reachable : Bit_Set := Create (0, 20);
+      begin
+         Reachable.Include (0);
+         for W of Integer_Array'[3, 5, 7] loop
+            Union_Shifted (Reachable, Reachable, Count_Type (W));
+         end loop;
+         Assert ("{0, 3, 5, 7, 8, 10, 12, 15}" = Reachable'Image, "Subset sums were " & Reachable'Image);
+      end;
+   end Test_Union_Shifted;
 
    ----------------
    -- Test_Image --
