@@ -15,12 +15,17 @@
 --  Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
 --  Boston, MA  02110-1301, USA.
 
-with Bit_Set_Examples; use Bit_Set_Examples;
+package Shared is
 
-package Bit_Set_Block_Iteration_Example is
+   --  Each example finds the primes up to some limit with the
+   --  Sieve of Eratosthenes and records how it went
+   type Example_State is tagged record
+      Memory_In_Bits   : Long_Long_Integer := 0;
+      Time_To_Sieve    : Duration          := 0.0;
+      Time_To_Count    : Duration          := 0.0;
+      Prime_Count      : Long_Long_Integer := 0;
+   end record;
 
-   HEADER : constant String := "Bit Set Block Iteration Example";
-   type Bit_Set_Block_Iteration_Example_State is new Bit_Set_Examples.Example_State with null record;
+   procedure Put (Example : Example_State'Class; Header : String);
 
-   procedure Run (Example : in out Bit_Set_Block_Iteration_Example_State; Size : Long_Long_Integer);
-end Bit_Set_Block_Iteration_Example;
+end Shared;

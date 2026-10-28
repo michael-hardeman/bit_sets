@@ -17,27 +17,27 @@
 
 with Ada.Unchecked_Deallocation;
 
-with Bit_Set_Examples;
+with Shared;
 
 package Boolean_Array_Example is
 
    --  This is how you would normally make a boolean array. Each boolean
-   --  is allocated as 8 bytes so this takes 8x more memory to store.
-   --  It is quite preformant to iterate as CPUs are great at loading
+   --  is allocated as a byte so this takes 8x more memory to store.
+   --  It is quite performant to iterate as CPUs are great at loading
    --  contiguous arrays and doing an operation on each item
    --
    --  Unfortunately that means it's very easy to exceed the stack size
    --  or explode memory usage when doing an algo like the Sieve of Eratosthenes
-   type Boolean_Array is array (Long_Long_Integer range <>) of Boolean;
+   type Boolean_Array is array (Natural range <>) of Boolean;
 
-   --  We have to allocate on the heap or else any test_size larger than about
-   --  1_000_000 seems to explode the default stack
+   --  We have to allocate on the heap or else any size larger than about
+   --  1_000_000 explodes the default stack
    type Boolean_Array_Ptr is access all Boolean_Array;
    procedure Free is new Ada.Unchecked_Deallocation (Boolean_Array, Boolean_Array_Ptr);
 
    HEADER : constant String := "Boolean Array Example";
 
-   type Boolean_Array_Example_State is new Bit_Set_Examples.Example_State with null record;
+   type Boolean_Array_Example_State is new Shared.Example_State with null record;
 
-   procedure Run (Example : in out Boolean_Array_Example_State; Size : Long_Long_Integer);
+   procedure Run (Example : in out Boolean_Array_Example_State; Limit : Natural);
 end Boolean_Array_Example;

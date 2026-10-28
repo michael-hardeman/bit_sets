@@ -15,12 +15,13 @@
 --  Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
 --  Boston, MA  02110-1301, USA.
 
-with Bit_Set_Examples; use Bit_Set_Examples;
+with Shared;
 
-package Bit_Set_Bit_Iteration_Example is
-   HEADER : constant String := "Bit Set Bit Iteration Example";
+package Bit_Set_Example is
 
-   type Bit_Set_Bit_Iteration_Example_State is new Bit_Set_Examples.Example_State with null record;
+   HEADER : constant String := "Bit Set Example";
 
-   procedure Run (Example : in out Bit_Set_Bit_Iteration_Example_State; Size : Long_Long_Integer);
-end Bit_Set_Bit_Iteration_Example;
+   type Bit_Set_Example_State is new Shared.Example_State with null record;
+
+   procedure Run (Example : in out Bit_Set_Example_State; Limit : Natural);
+end Bit_Set_Example;

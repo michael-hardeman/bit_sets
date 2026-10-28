@@ -17,7 +17,7 @@
 
 with Ada.Text_IO; use Ada.Text_IO;
 
-package body Bit_Set_Examples is
+package body Shared is
 
    procedure Put_Header (Header : String) is begin
       for I in 1 .. Header'Length + 6 loop
@@ -33,13 +33,11 @@ package body Bit_Set_Examples is
 
    procedure Put (Example : Example_State'Class; Header : String) is begin
       Put_Header (Header);
-      Put_Line ("Memory Size: " & Example.Size_In_Bits'Image & " bits");
-      Put_Line ("Time to set alternating bit pattern: " & Example.Time_To_Set_Bit_Pattern'Image & "s");
-      Put_Line ("Time to count population: " & Example.Time_To_Count_Pop_Pattern'Image & "s");
-      Put_Line ("Population: " & Example.Pop_Count'Image);
-      Put_Line ("Time to test all bits: " & Example.Time_To_Test_Bit_Pattern'Image & "s");
-      Put_Line ("Is_Alternating: " & Example.Is_Alternating'Image);
+      Put_Line ("Memory Size: " & Example.Memory_In_Bits'Image & " bits");
+      Put_Line ("Time to sieve: " & Example.Time_To_Sieve'Image & "s");
+      Put_Line ("Time to count primes: " & Example.Time_To_Count'Image & "s");
+      Put_Line ("Primes found: " & Example.Prime_Count'Image);
       New_Line;
    end Put;
 
-end Bit_Set_Examples;
+end Shared;

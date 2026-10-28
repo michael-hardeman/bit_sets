@@ -18,39 +18,37 @@
 with Ada.Calendar; use Ada.Calendar;
 
 package body Boolean_Array_Example is
-   procedure Run (Example : in out Boolean_Array_Example_State; Size : Long_Long_Integer) is
-      First : constant Long_Long_Integer := Long_Long_Integer'First;
-      Last  : constant Long_Long_Integer := Long_Long_Integer'First + Size - 1;
-      Bits : Boolean_Array_Ptr := new Boolean_Array (First .. Last);
+   procedure Run (Example : in out Boolean_Array_Example_State; Limit : Natural) is
+      Is_Prime   : Boolean_Array_Ptr := new Boolean_Array'(0 .. Limit => True);
+      Prime      : Natural := 2;
+      Multiple   : Natural;
       Start_Time : Time;
    begin
-      Example.Size_In_Bits := Bits.all'Size;
+      Example.Memory_In_Bits := Is_Prime.all'Size;
 
       Start_Time := Clock;
-      for I in 0 .. (Size - 1) loop
-         Bits.all (First + I) := I mod 2 = 0;
+      Is_Prime (0) := False;
+      Is_Prime (1) := False;
+      while Prime <= Limit / Prime loop
+         if Is_Prime (Prime) then
+            Multiple := Prime * Prime;
+            while Multiple <= Limit loop
+               Is_Prime (Multiple) := False;
+               Multiple := Multiple + Prime;
+            end loop;
+         end if;
+         Prime := Prime + 1;
       end loop;
-      Example.Time_To_Set_Bit_Pattern := Clock - Start_Time;
+      Example.Time_To_Sieve := Clock - Start_Time;
 
       Start_Time := Clock;
-      for I in 0 .. (Size - 1) loop
-         if Bits.all (First + I) then
-            Example.Pop_Count := Example.Pop_Count + 1;
+      for Value of Is_Prime.all loop
+         if Value then
+            Example.Prime_Count := Example.Prime_Count + 1;
          end if;
       end loop;
-      Example.Time_To_Count_Pop_Pattern := Clock - Start_Time;
+      Example.Time_To_Count := Clock - Start_Time;
 
-      Example.Is_Alternating := True;
-      Start_Time := Clock;
-      for I in 0 .. (Size - 1) loop
-         if I mod 2 = 0 then
-            Example.Is_Alternating := Example.Is_Alternating and then Bits.all (First + I);
-         else
-            Example.Is_Alternating := Example.Is_Alternating and then not Bits.all (First + I);
-         end if;
-      end loop;
-      Example.Time_To_Test_Bit_Pattern := Clock - Start_Time;
-
-      Free (Bits);
+      Free (Is_Prime);
    end Run;
 end Boolean_Array_Example;
