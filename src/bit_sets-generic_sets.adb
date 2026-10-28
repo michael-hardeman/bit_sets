@@ -29,15 +29,20 @@ package body Bit_Sets.Generic_Sets is
    function Block_Count (Length : Count_Type) return Count_Type
      is ((Length + Block_Size - 1) / Block_Size);
 
-   --  Position of Index counted from the first bit of the set
-   function Offset_Of (S : Bit_Set; Index : Index_Type) return Count_Type
-     is (Count_Type (Long_Long_Integer (Index) - Long_Long_Integer (S.First)));
+   --  Position of a bit counted from the first bit of the set. It is unsigned so
+   --  "/" and "mod" by Block_Size compile to a shift and a mask. With a signed type
+   --  the compiler must also handle negative values, and when range checks are
+   --  suppressed nothing tells it the value is never negative.
+   type Bit_Position is mod 2 ** 64;
+
+   function Offset_Of (S : Bit_Set; Index : Index_Type) return Bit_Position
+     is (Bit_Position (Long_Long_Integer (Index) - Long_Long_Integer (S.First)));
 
    function Index_At (S : Bit_Set; Offset : Count_Type) return Index_Type
      is (Index_Type (Long_Long_Integer (S.First) + Long_Long_Integer (Offset)));
 
-   function Block_Of (Offset : Count_Type) return Count_Type is (Offset / Block_Size);
-   function Bit_Of   (Offset : Count_Type) return Bit_Offset is (Bit_Offset (Offset mod Block_Size));
+   function Block_Of (Offset : Bit_Position) return Count_Type is (Count_Type (Offset / Block_Size));
+   function Bit_Of   (Offset : Bit_Position) return Bit_Offset is (Bit_Offset (Offset mod Block_Size));
 
    --  Number of bits used in the final block, 0 when the final block is full
    function Tail_Bits (S : Bit_Set) return Bit_Count is (Bit_Count (S.Length mod Block_Size));
@@ -112,7 +117,7 @@ package body Bit_Sets.Generic_Sets is
    -- Contains --
    --------------
    function Contains (S : Bit_Set; Index : Index_Type) return Boolean is
-      Offset : constant Count_Type := Offset_Of (S, Index);
+      Offset : constant Bit_Position := Offset_Of (S, Index);
    begin
       return (S.Blocks (Block_Of (Offset)) and Bit_Mask (Bit_Of (Offset))) /= ALL_ZEROS;
    end Contains;
@@ -121,7 +126,7 @@ package body Bit_Sets.Generic_Sets is
    -- Include --
    -------------
    procedure Include (S : in out Bit_Set; Index : Index_Type) is
-      Offset : constant Count_Type := Offset_Of (S, Index);
+      Offset : constant Bit_Position := Offset_Of (S, Index);
       Block  : Block_Type renames S.Blocks (Block_Of (Offset));
    begin
       Block := Block or Bit_Mask (Bit_Of (Offset));
@@ -131,7 +136,7 @@ package body Bit_Sets.Generic_Sets is
    -- Exclude --
    -------------
    procedure Exclude (S : in out Bit_Set; Index : Index_Type) is
-      Offset : constant Count_Type := Offset_Of (S, Index);
+      Offset : constant Bit_Position := Offset_Of (S, Index);
       Block  : Block_Type renames S.Blocks (Block_Of (Offset));
    begin
       Block := Block and not Bit_Mask (Bit_Of (Offset));
@@ -141,7 +146,7 @@ package body Bit_Sets.Generic_Sets is
    -- Flip --
    ----------
    procedure Flip (S : in out Bit_Set; Index : Index_Type) is
-      Offset : constant Count_Type := Offset_Of (S, Index);
+      Offset : constant Bit_Position := Offset_Of (S, Index);
       Block  : Block_Type renames S.Blocks (Block_Of (Offset));
    begin
       Block := Block xor Bit_Mask (Bit_Of (Offset));
@@ -162,12 +167,12 @@ package body Bit_Sets.Generic_Sets is
       end if;
 
       declare
-         First_Offset : constant Count_Type := Offset_Of (S, From);
-         Last_Offset  : constant Count_Type := Offset_Of (S, To);
-         First_Block  : constant Count_Type := Block_Of (First_Offset);
-         Last_Block   : constant Count_Type := Block_Of (Last_Offset);
-         First_Mask   : constant Block_Type := High_Mask (Bit_Of (First_Offset));
-         Last_Mask    : constant Block_Type := Low_Mask (Bit_Count (Bit_Of (Last_Offset)) + 1);
+         First_Offset : constant Bit_Position := Offset_Of (S, From);
+         Last_Offset  : constant Bit_Position := Offset_Of (S, To);
+         First_Block  : constant Count_Type   := Block_Of (First_Offset);
+         Last_Block   : constant Count_Type   := Block_Of (Last_Offset);
+         First_Mask   : constant Block_Type   := High_Mask (Bit_Of (First_Offset));
+         Last_Mask    : constant Block_Type   := Low_Mask (Bit_Count (Bit_Of (Last_Offset)) + 1);
       begin
          if First_Block = Last_Block then
             Apply (S.Blocks (First_Block), First_Mask and Last_Mask);
@@ -336,9 +341,9 @@ package body Bit_Sets.Generic_Sets is
    -- Find --
    ----------
    function Find (S : Bit_Set; From : Index_Type) return Cursor is
-      Offset : constant Count_Type := Offset_Of (S, From);
-      B      : Count_Type          := Block_Of (Offset);
-      Block  : Block_Type          := S.Blocks (B) and High_Mask (Bit_Of (Offset));
+      Offset : constant Bit_Position := Offset_Of (S, From);
+      B      : Count_Type            := Block_Of (Offset);
+      Block  : Block_Type            := S.Blocks (B) and High_Mask (Bit_Of (Offset));
    begin
       loop
          if Block /= ALL_ZEROS then
